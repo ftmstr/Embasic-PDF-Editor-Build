@@ -126,6 +126,33 @@ fun main() {
         check(moved.current.pages.map { it.id } == listOf("p1", "p2", "p3"))
         check(moved.undoDepth == h.undoDepth)
     }
+    scenario("batch rotation updates selected pages atomically") {
+        val h = base().dispatch(EditorAction.RotatePages(setOf("p1", "p3"), 1))
+        check(h.current.pages.map { it.quarterTurns } == listOf(1, 0, 1))
+        check(h.undoDepth == base().undoDepth + 1)
+        check(h.undo().current.pages.map { it.quarterTurns } == listOf(0, 0, 0))
+        check(h.undo().redo().current.pages.map { it.quarterTurns } == listOf(1, 0, 1))
+    }
+    scenario("batch rotation rejects unknown IDs without partial edit") {
+        val h = base()
+        rejects<IllegalArgumentException> { h.dispatch(EditorAction.RotatePages(setOf("p1", "missing"), 1)) }
+        check(h.current.pages.all { it.quarterTurns == 0 })
+    }
+    scenario("batch rotation rejects empty page set") {
+        rejects<IllegalArgumentException> { base().dispatch(EditorAction.RotatePages(emptySet(), 1)) }
+    }
+    scenario("batch rotation full turns is history no-op") {
+        val h = base()
+        val n = h.dispatch(EditorAction.RotatePages(setOf("p1", "p2"), Int.MIN_VALUE))
+        check(n === h)
+    }
+    scenario("batch rotation preserves page order selection and export") {
+        val h = base().dispatch(EditorAction.SelectPages(setOf("p2")))
+            .dispatch(EditorAction.RotatePages(setOf("p3", "p1"), -1))
+        check(h.current.pages.map { it.id } == listOf("p1", "p2", "p3"))
+        check(h.current.selection.pageIds == setOf("p2"))
+        check(EditorExportPlan.from(h.current).pages.map { it.quarterTurns } == listOf(3, 0, 3))
+    }
     scenario("exhaustive five-page subset insertion preserves order and undo") {
         val initial = EditorHistory.start().dispatch(
             EditorAction.ImportSource(SourceDocumentRef("s1", 5), listOf("p1", "p2", "p3", "p4", "p5"))
