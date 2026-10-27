@@ -92,9 +92,15 @@ def preflight(root: Path, manifest: Path):
                 raise AdmissionError("symlink in source path")
         if not current.is_file() or not current.resolve().is_relative_to(root.resolve()):
             raise AdmissionError("missing or escaping source file")
-        if current.stat().st_size > MAX_FILE_BYTES:
+        before = current.stat()
+        if before.st_nlink != 1:
+            raise AdmissionError("hardlinked source file is not isolated")
+        if before.st_size > MAX_FILE_BYTES:
             raise AdmissionError("source file exceeds limit")
         data = current.read_bytes()
+        after = current.stat()
+        if after.st_nlink != 1 or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+            raise AdmissionError("source changed during preflight")
         total += len(data)
         if total > MAX_TOTAL_BYTES:
             raise AdmissionError("candidate batch exceeds limit")
