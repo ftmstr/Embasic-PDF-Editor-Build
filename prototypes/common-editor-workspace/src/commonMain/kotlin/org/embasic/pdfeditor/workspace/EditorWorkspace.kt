@@ -72,6 +72,8 @@ sealed interface EditorAction {
     /** Rotate a nonempty set of existing pages as one undoable action. */
     data class RotatePages(val pageIds: Set<String>, val clockwiseQuarterTurns: Int) : EditorAction
     data class DuplicatePage(val pageId: String, val newPageId: String) : EditorAction
+    /** Duplicate selected origins in document order, inserting each copy immediately after its origin. */
+    data class DuplicatePages(val newPageIdsByOriginal: Map<String, String>) : EditorAction
     data class DeletePages(val pageIds: Set<String>) : EditorAction
     data class SelectPages(val pageIds: Set<String>) : EditorAction
 }
@@ -131,6 +133,19 @@ object EditorReducer {
                 val updated = pages.toMutableList()
                 updated.add(index + 1, pages[index].copy(id = action.newPageId))
                 state.with(pages = updated)
+            }
+            is EditorAction.DuplicatePages -> {
+                val mapping = action.newPageIdsByOriginal.toMap()
+                val existingIds = pages.map { it.id }.toSet()
+                val newIds = mapping.values.toList()
+                require(mapping.isNotEmpty() && mapping.keys.all { it in existingIds } &&
+                    newIds.all { it.isNotBlank() && it !in existingIds } &&
+                    newIds.toSet().size == newIds.size) { "invalid multi-page duplicate" }
+                val expanded = pages.flatMap { page ->
+                    val newId = mapping[page.id]
+                    if (newId == null) listOf(page) else listOf(page, page.copy(id = newId))
+                }
+                state.with(pages = expanded)
             }
             is EditorAction.DeletePages -> {
                 val ids = action.pageIds.toSet()
