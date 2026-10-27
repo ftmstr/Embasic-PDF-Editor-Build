@@ -52,3 +52,14 @@ This document reflects the transition/bootstrap only. It must be amended upon ne
 - Trusted executable PUBLIC checkout attempt **FAIL (DNS: github.com, git exit 128)**. Actual full checkout, source migration, reconstruction checksum convergence, Gradle, platform build/runtime, resolved license/SBOM/NOTICE, packaging/signing/rollback remain **NOT RUN**.
 - Historical PRIVATE starter 142/142 and policy 17/17 were **NOT RUN** on PUBLIC. No PRIVATE writes. No Actions triggered. PUBLIC commits include `[skip ci]`; no force-push.
 - **PRODUCTION NOT FINAL.** No public production binaries or migration authorization.
+
+## V1057 — 2026-10-27 hardlink admission regression
+
+- PUBLIC main was `0744ae21d8e8b5a1cebbd8a6dff351f5b5a54c49` at the beginning of this turn; this is a **PUBLIC** change, with PRIVATE read-only.
+- Verified PUBLIC tooling/test bytes against the earlier evidence ZIP using `git hash-object`: `ccabdbd221dad8e266c5a0e57c3426bd84672a35` / `98fe48d609fe1d7e763b870af0261455664599af`. Re-ran existing 13 tests: 13/13 PASS.
+- A real local hardlink pointing outside the candidate directory passed the prior preflight despite being a multi-link inode. New regression reproduced this gap: 1 expected FAIL (14 tests, exit 1).
+- Small fail-closed fix rejects `st_nlink != 1` and detects changed source identity/size/mtime around read. New isolated regression: **14/14 PASS** (exit 0), `py_compile` PASS; updated local Git blob IDs: tool `cb30b28fa4debeeb8f21a86e0e1ba758d113c90a`, test `824bff3a3e6e51c82af7b3bfc9eaf16164120c9f`. GitHub updated blobs were checked against these local identities.
+- **Limitations:** This is a best-effort offline mechanical preflight, not an atomic file-descriptor walk, race-proof intake, trusted checkout, legal/privacy clearance, or release gate. Multi-link rejection may conservatively reject safe candidates; human review still required. No PRIVATE files migrated.
+- `git clone` PUBLIC still **FAIL (DNS / exit 128)** in the executable environment. Trusted full checkout, V477–latest regressions, reconstruction convergence, strict Gradle dependency verification, resolved license/SBOM/NOTICE, product build/unit/integration, Android/Windows/Ubuntu, security, packaging and signing/rollback all **NOT RUN** in PUBLIC. Historical PRIVATE security/reconstruction failures remain unresolved; do not promote historical PASS.
+- PDF Arranger GPL-3.0 implementation was not copied; ADR-005 is a historical architecture reference, not a completed PUBLIC implementation. Desktop PDFBox and Android PdfRenderer remain planned baselines.
+- GitHub Actions not triggered; PUBLIC commits use `[skip ci]`; no force push; **PRODUCTION NOT FINAL**.
