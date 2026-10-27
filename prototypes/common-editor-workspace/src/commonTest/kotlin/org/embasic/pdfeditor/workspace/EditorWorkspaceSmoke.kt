@@ -80,5 +80,22 @@ fun main() {
     }
     scenario("invalid selection rejected") { rejects<IllegalArgumentException> { base().dispatch(EditorAction.SelectPages(setOf("missing"))) } }
     scenario("page source is opaque and stable") { check(base().current.pages.first().sourceId == "s1") }
+    scenario("export omits completely deleted source") {
+        val h = base()
+            .dispatch(EditorAction.ImportSource(SourceDocumentRef("s2", 1), listOf("p4")))
+            .dispatch(EditorAction.DeletePages(setOf("p1", "p2", "p3")))
+        val plan = EditorExportPlan.from(h.current)
+        check(plan.sources.map { it.id } == listOf("s2"))
+        check(plan.pages.map { it.sourceId } == listOf("s2"))
+    }
+    scenario("export includes each referenced source once in import order") {
+        val h = base()
+            .dispatch(EditorAction.ImportSource(SourceDocumentRef("s2", 1), listOf("p4")))
+            .dispatch(EditorAction.MovePage("p4", 0))
+            .dispatch(EditorAction.DuplicatePage("p4", "p5"))
+        val plan = EditorExportPlan.from(h.current)
+        check(plan.sources.map { it.id } == listOf("s1", "s2"))
+        check(plan.pages.map { it.sourceId } == listOf("s2", "s2", "s1", "s1", "s1"))
+    }
     println("RESULT: $executed/$executed PASS (isolated Kotlin/JVM smoke only)")
 }
