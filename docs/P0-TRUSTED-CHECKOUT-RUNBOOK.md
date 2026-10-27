@@ -7,12 +7,21 @@ The former `ftmstr/uygulama-baslangic-sablonu` is **STRICTLY READ-ONLY** and mus
 
 ## One-shot checkout on a Git-capable host
 
-Use an empty, non-existing destination directory and a working Git network connection:
+The checkout tool itself lives in the PUBLIC repository, so a fresh machine must **bootstrap it from a pinned, SHA-256-verified GitHub raw file before cloning**. Use an empty, non-existing destination directory and a working Git network connection:
 
 ```sh
+curl --fail --location --silent --show-error \
+  --output p0_public_checkout.py \
+  https://raw.githubusercontent.com/ftmstr/Embasic-PDF-Editor-Build/2a9adfe1f1d0463d017b139104391ef06ef9e851/tools/p0_public_checkout.py
+printf '%s  %s\n' \
+  0d587147eb557ee2f5af3b8debf5d00d737ab6b4fba4de7007f00dad9048707d \
+  p0_public_checkout.py | sha256sum --check
+python3 p0_public_checkout.py --destination /absolute/path/Embasic-PDF-Editor-Build
+cd /absolute/path/Embasic-PDF-Editor-Build
 python3 -m unittest discover -s tests -p 'test_p0_public_checkout.py' -v
-python3 tools/p0_public_checkout.py --destination /absolute/path/Embasic-PDF-Editor-Build
 ```
+
+Alternatively, manually clone the exact PUBLIC repository on a trusted host and independently execute the integrity checks below; do not claim the one-shot tool ran unless it actually did. The pinned bootstrap source may lag a newer PUBLIC HEAD; after clone, compare against current `origin/main` and `docs/STATUS.md`.
 
 The checkout tool is deliberately limited to the exact canonical PUBLIC HTTPS URL. It runs `git clone --no-tags --no-single-branch --branch main`, then requires the exact origin URL, non-shallow `main`, `HEAD == origin/main`, a clean worktree/index, successful `git fsck --full --strict --no-reflogs`, and no unreviewed Git submodules. It emits JSON with the checked commit and tracked-entry count. A local `file://` fixture is allowed **only** when both explicit test-only flags are passed. The tool does not execute project builds, GitHub Actions, or remote writes.
 
