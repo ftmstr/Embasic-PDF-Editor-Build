@@ -180,8 +180,9 @@ class EditorExportPlan private constructor(
     companion object {
         fun from(state: EditorDocumentState): EditorExportPlan {
             require(state.pages.isNotEmpty()) { "cannot export empty document" }
+            val referencedSourceIds = state.pages.map { it.sourceId }.toSet()
             return EditorExportPlan(
-                state.sources.toList(),
+                state.sources.filter { it.id in referencedSourceIds },
                 state.pages.map { EditorExportPage(it.sourceId, it.sourcePageIndex, it.quarterTurns) },
             )
         }
