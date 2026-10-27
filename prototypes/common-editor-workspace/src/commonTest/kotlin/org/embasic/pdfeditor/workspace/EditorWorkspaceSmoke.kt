@@ -153,6 +153,43 @@ fun main() {
         check(h.current.selection.pageIds == setOf("p2"))
         check(EditorExportPlan.from(h.current).pages.map { it.quarterTurns } == listOf(3, 0, 3))
     }
+    scenario("batch duplicate inserts copies after each original in document order") {
+        val h = base().dispatch(EditorAction.DuplicatePages(linkedMapOf("p3" to "p5", "p1" to "p4")))
+        check(h.current.pages.map { it.id } == listOf("p1", "p4", "p2", "p3", "p5"))
+        check(h.current.pages.map { it.sourcePageIndex } == listOf(0, 0, 1, 2, 2))
+        check(h.undoDepth == base().undoDepth + 1)
+    }
+    scenario("batch duplicate preserves source rotation selection and export plan") {
+        val h = base().dispatch(EditorAction.RotatePages(setOf("p1", "p3"), 3))
+            .dispatch(EditorAction.SelectPages(setOf("p1")))
+            .dispatch(EditorAction.DuplicatePages(mapOf("p1" to "copy1", "p3" to "copy3")))
+        check(h.current.selection.pageIds == setOf("p1"))
+        check(h.current.pages.map { it.quarterTurns } == listOf(3, 3, 0, 3, 3))
+        check(EditorExportPlan.from(h.current).pages.map { it.sourcePageIndex } == listOf(0, 0, 1, 2, 2))
+        check(EditorExportPlan.from(h.current).sources.map { it.id } == listOf("s1"))
+    }
+    scenario("batch duplicate undo redo is atomic") {
+        val h = base().dispatch(EditorAction.DuplicatePages(mapOf("p1" to "c1", "p2" to "c2")))
+        check(h.undo().current.pages.map { it.id } == listOf("p1", "p2", "p3"))
+        check(h.undo().redo().current.pages.map { it.id } == listOf("p1", "c1", "p2", "c2", "p3"))
+    }
+    scenario("batch duplicate rejects unknown origin and collisions without mutation") {
+        val h = base()
+        val bad = listOf(
+            mapOf("p1" to "c1", "missing" to "c2"),
+            mapOf("p1" to "p2"),
+            mapOf("p1" to "c1", "p2" to "c1"),
+            mapOf("p1" to ""),
+        )
+        for (mapping in bad) rejects<IllegalArgumentException> {
+            h.dispatch(EditorAction.DuplicatePages(mapping))
+        }
+        check(h.current.pages.map { it.id } == listOf("p1", "p2", "p3"))
+        check(h.undoDepth == 1)
+    }
+    scenario("batch duplicate rejects empty request") {
+        rejects<IllegalArgumentException> { base().dispatch(EditorAction.DuplicatePages(emptyMap())) }
+    }
     scenario("exhaustive five-page subset insertion preserves order and undo") {
         val initial = EditorHistory.start().dispatch(
             EditorAction.ImportSource(SourceDocumentRef("s1", 5), listOf("p1", "p2", "p3", "p4", "p5"))
