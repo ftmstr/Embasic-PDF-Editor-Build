@@ -66,6 +66,8 @@ sealed interface EditorAction {
     /** Import is model-only; a platform adapter must bind the opaque source ID to verified bytes. */
     data class ImportSource(val source: SourceDocumentRef, val pageIds: List<String>) : EditorAction
     data class MovePage(val pageId: String, val targetIndex: Int) : EditorAction
+    /** Insert selected pages at an index in the list AFTER removing those pages. */
+    data class MovePages(val pageIds: Set<String>, val targetIndex: Int) : EditorAction
     data class RotatePage(val pageId: String, val clockwiseQuarterTurns: Int) : EditorAction
     data class DuplicatePage(val pageId: String, val newPageId: String) : EditorAction
     data class DeletePages(val pageIds: Set<String>) : EditorAction
@@ -93,6 +95,15 @@ object EditorReducer {
                     reordered.add(action.targetIndex, page)
                     state.with(pages = reordered)
                 }
+            }
+            is EditorAction.MovePages -> {
+                val ids = action.pageIds.toSet()
+                require(ids.isNotEmpty() && ids.all { id -> pages.any { it.id == id } }) { "invalid moved pages" }
+                val moving = pages.filter { it.id in ids }
+                val remaining = pages.filterNot { it.id in ids }
+                require(action.targetIndex in 0..remaining.size) { "invalid multi-page insertion index" }
+                val reordered = remaining.take(action.targetIndex) + moving + remaining.drop(action.targetIndex)
+                if (reordered == pages) state else state.with(pages = reordered)
             }
             is EditorAction.RotatePage -> {
                 val index = pages.indexOfFirst { it.id == action.pageId }
