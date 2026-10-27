@@ -97,5 +97,58 @@ fun main() {
         check(plan.sources.map { it.id } == listOf("s1", "s2"))
         check(plan.pages.map { it.sourceId } == listOf("s2", "s2", "s1", "s1", "s1"))
     }
+    scenario("move selected nonadjacent pages to front preserving original order") {
+        val h = base().dispatch(EditorAction.ImportSource(SourceDocumentRef("s2", 2), listOf("p4", "p5")))
+            .dispatch(EditorAction.SelectPages(setOf("p2", "p4")))
+            .dispatch(EditorAction.MovePages(setOf("p4", "p2"), 0))
+        check(h.current.pages.map { it.id } == listOf("p2", "p4", "p1", "p3", "p5"))
+        check(h.current.selection.pageIds == setOf("p2", "p4"))
+    }
+    scenario("move selected pages to end in reduced-list coordinates") {
+        val h = base().dispatch(EditorAction.ImportSource(SourceDocumentRef("s2", 2), listOf("p4", "p5")))
+            .dispatch(EditorAction.MovePages(setOf("p2", "p4"), 3))
+        check(h.current.pages.map { it.id } == listOf("p1", "p3", "p5", "p2", "p4"))
+        check(h.undo().current.pages.map { it.id } == listOf("p1", "p2", "p3", "p4", "p5"))
+        check(h.undo().redo().current.pages.map { it.id } == listOf("p1", "p3", "p5", "p2", "p4"))
+    }
+    scenario("reject unknown page in multi-page move") {
+        rejects<IllegalArgumentException> { base().dispatch(EditorAction.MovePages(setOf("p2", "missing"), 0)) }
+    }
+    scenario("reject empty multi-page move") {
+        rejects<IllegalArgumentException> { base().dispatch(EditorAction.MovePages(emptySet(), 0)) }
+    }
+    scenario("reject multi-page insertion index outside reduced list") {
+        rejects<IllegalArgumentException> { base().dispatch(EditorAction.MovePages(setOf("p1", "p3"), 2)) }
+    }
+    scenario("no-op multi-page move does not grow history") {
+        val h = base()
+        val moved = h.dispatch(EditorAction.MovePages(setOf("p1", "p2"), 0))
+        check(moved.current.pages.map { it.id } == listOf("p1", "p2", "p3"))
+        check(moved.undoDepth == h.undoDepth)
+    }
+    scenario("exhaustive five-page subset insertion preserves order and undo") {
+        val initial = EditorHistory.start().dispatch(
+            EditorAction.ImportSource(SourceDocumentRef("s1", 5), listOf("p1", "p2", "p3", "p4", "p5"))
+        )
+        val before = initial.current.pages.map { it.id }
+        var cases = 0
+        for (mask in 1 until (1 shl before.size)) {
+            val moved = before.filterIndexed { index, _ -> mask and (1 shl index) != 0 }
+            val remaining = before.filterNot { it in moved }
+            for (target in 0..remaining.size) {
+                val expected = remaining.take(target) + moved + remaining.drop(target)
+                val result = initial.dispatch(EditorAction.MovePages(moved.toSet(), target))
+                check(result.current.pages.map { it.id } == expected)
+                check(result.current.pages.all { it.sourceId == "s1" })
+                if (expected == before) check(result.undoDepth == initial.undoDepth)
+                else {
+                    check(result.undo().current.pages.map { it.id } == before)
+                    check(result.undo().redo().current.pages.map { it.id } == expected)
+                }
+                cases++
+            }
+        }
+        check(cases == 106) { "unexpected exhaustive case count: $cases" }
+    }
     println("RESULT: $executed/$executed PASS (isolated Kotlin/JVM smoke only)")
 }
