@@ -69,6 +69,8 @@ sealed interface EditorAction {
     /** Insert selected pages at an index in the list AFTER removing those pages. */
     data class MovePages(val pageIds: Set<String>, val targetIndex: Int) : EditorAction
     data class RotatePage(val pageId: String, val clockwiseQuarterTurns: Int) : EditorAction
+    /** Rotate a nonempty set of existing pages as one undoable action. */
+    data class RotatePages(val pageIds: Set<String>, val clockwiseQuarterTurns: Int) : EditorAction
     data class DuplicatePage(val pageId: String, val newPageId: String) : EditorAction
     data class DeletePages(val pageIds: Set<String>) : EditorAction
     data class SelectPages(val pageIds: Set<String>) : EditorAction
@@ -114,6 +116,14 @@ object EditorReducer {
                     updated[index] = pages[index].copy(quarterTurns = (pages[index].quarterTurns + turns) % 4)
                     state.with(pages = updated)
                 }
+            }
+            is EditorAction.RotatePages -> {
+                val ids = action.pageIds.toSet()
+                require(ids.isNotEmpty() && ids.all { id -> pages.any { it.id == id } }) { "invalid rotated pages" }
+                val turns = ((action.clockwiseQuarterTurns % 4) + 4) % 4
+                if (turns == 0) state else state.with(pages = pages.map { page ->
+                    if (page.id in ids) page.copy(quarterTurns = (page.quarterTurns + turns) % 4) else page
+                })
             }
             is EditorAction.DuplicatePage -> {
                 val index = pages.indexOfFirst { it.id == action.pageId }
