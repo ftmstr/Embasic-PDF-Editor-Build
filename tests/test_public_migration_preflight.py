@@ -50,6 +50,17 @@ class MigrationPreflightTests(unittest.TestCase):
         self.file.symlink_to(self.base / "outside.kt")
         self.fails()
 
+    def test_hardlink_to_outside_candidate_root_rejected(self):
+        # A hard link is not a symlink and resolve() stays inside root;
+        # reject multi-link files rather than accepting unreviewed external inodes.
+        outside = self.base / "unreviewed.kt"
+        outside.write_bytes(self.file.read_bytes())
+        self.file.unlink()
+        import os
+        os.link(outside, self.file)
+        self.assertGreater(self.file.stat().st_nlink, 1)
+        self.fails()
+
     def test_gpl_not_preapproved(self):
         self.entry["license_spdx"] = "GPL-3.0-only"
         self.save()
