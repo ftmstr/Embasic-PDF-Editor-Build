@@ -63,3 +63,16 @@ This document reflects the transition/bootstrap only. It must be amended upon ne
 - `git clone` PUBLIC still **FAIL (DNS / exit 128)** in the executable environment. Trusted full checkout, V477–latest regressions, reconstruction convergence, strict Gradle dependency verification, resolved license/SBOM/NOTICE, product build/unit/integration, Android/Windows/Ubuntu, security, packaging and signing/rollback all **NOT RUN** in PUBLIC. Historical PRIVATE security/reconstruction failures remain unresolved; do not promote historical PASS.
 - PDF Arranger GPL-3.0 implementation was not copied; ADR-005 is a historical architecture reference, not a completed PUBLIC implementation. Desktop PDFBox and Android PdfRenderer remain planned baselines.
 - GitHub Actions not triggered; PUBLIC commits use `[skip ci]`; no force push; **PRODUCTION NOT FINAL**.
+
+## V1058 — 2026-10-27 18:00 TRT — isolated clean-room workspace PoC
+
+- Starting canonical PUBLIC HEAD: `01e0e32866be9d0e31bd032818d8132fba93a5d7`; PRIVATE remains strictly READ-ONLY.
+- Added **independently authored** `prototypes/common-editor-workspace/` Kotlin domain PoC, its isolated smoke harness, and README. This is **not integrated** into Gradle or production commonMain and imports no PRIVATE implementation or PDF Arranger GPL-3.0 code.
+- Scope: `SourceDocumentRef`, `EditorPageRef`, `SelectionState`, `EditorDocumentState`, `EditorAction`, `EditorExportPlan`, `EditorHistory`; reducer supports import/move/rotate/duplicate/delete/select. Opaque source IDs, declarative export plan, defensive collection copies, snapshot-count-bounded undo/redo. No PDFBox, Android URI, Swing, Compose, renderer or filesystem handles in domain.
+- Actual isolated execution: `kotlinc-jvm 1.9.0` with JRE 21 compiled the locally authored Kotlin sources (exit 0); `java -jar editor-workspace-smoke.jar` **26/26 PASS** (exit 0). This is **JVM-only PoC smoke**, not product Unit/Integration/KMP/Android/Windows/Ubuntu acceptance.
+- GitHub PUBLIC source/test blobs match the exact locally compiled and executed source: Kotlin source `4af9c9005b6297dbc37785789922f1a0f6c1912c`, smoke test `171b5a900e0b7a299207e971802005ad5c870021`. Static platform import pattern screen: 9/9 PASS (text only).
+- V1057 PUBLIC preflight tooling independently re-executed from the V1057 evidence ZIP: **14/14 PASS**, exit 0; not product Security gate.
+- Trusted PUBLIC `git ls-remote` still **FAIL**, DNS `github.com` exit 128; full checkout, V477–latest regressions, source migration, authoritative starter/policy rechecks, reconstruction convergence, strict dependency verification, resolved License/SBOM/NOTICE, Gradle and platform gates remain **NOT RUN**.
+- History bounded by number of snapshots, not byte memory; source IDs need verified platform bindings; no PDF byte export implemented. This prototype must not be promoted until P0 checkout/migration/license/build gates and real KMP integration tests.
+- PDF Arranger clean-room boundary unchanged; desktop PDFBox structural backend and Android PdfRenderer viewer remain intended; no Poppler/pikepdf or Android structural engine choice.
+- GitHub Actions not triggered; all new PUBLIC commits `[skip ci]`, no force push; **PRODUCTION NOT FINAL**.
