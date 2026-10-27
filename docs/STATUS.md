@@ -76,3 +76,18 @@ This document reflects the transition/bootstrap only. It must be amended upon ne
 - History bounded by number of snapshots, not byte memory; source IDs need verified platform bindings; no PDF byte export implemented. This prototype must not be promoted until P0 checkout/migration/license/build gates and real KMP integration tests.
 - PDF Arranger clean-room boundary unchanged; desktop PDFBox structural backend and Android PdfRenderer viewer remain intended; no Poppler/pikepdf or Android structural engine choice.
 - GitHub Actions not triggered; all new PUBLIC commits `[skip ci]`, no force push; **PRODUCTION NOT FINAL**.
+
+## V1059 — 2026-10-27 19:00 TRT — export-plan source minimization (isolated PoC)
+
+- PUBLIC `main` was `a19562e1cefa61a31a38cca7c932e155759a7a00` at start. PRIVATE remained **strictly READ-ONLY**.
+- Reused V1058 evidence ZIP source/test after verifying exact Git blob identities `4af9c9005b6297dbc37785789922f1a0f6c1912c` and `171b5a900e0b7a299207e971802005ad5c870021` against PUBLIC GitHub.
+- **Bug:** `EditorExportPlan.from` included source documents even after all their pages were deleted. This would force adapters to handle unreferenced inputs unnecessarily, and could increase file-access and privacy exposure if naïvely implemented.
+- Added two independent regression scenarios: (1) completely deleted source is omitted, (2) each referenced source appears exactly once in original import order while export page order remains unchanged.
+- Actual **RED**: Kotlin/JVM compilation exit 0; old implementation with new regression harness exited **1** on the deleted-source test (expected failure).
+- Small clean-room fix: compute source IDs referenced by the current page list, filter source refs while preserving original source import order; no engine, platform adapter, or other behavior changed.
+- Actual **GREEN**: `kotlinc-jvm 1.9.0` / JRE 21 compilation exit 0; `java -jar` exit 0; **28/28 isolated JVM smoke PASS**. This is not a Gradle/KMP/product Unit or Integration PASS.
+- Exact updated Git blob IDs matched locally compiled/tested bytes: source `7a6c144d9e0ff479dbf29170eb7f09721ec818aa`, smoke `6d74664697b8be5a01ec46d1671b8a0ce272493b`. PUBLIC commits include `[skip ci]`; no force push or Actions trigger.
+- PUBLIC `git ls-remote` in the executable container **FAIL** (DNS, exit 128); trusted complete checkout **NOT RUN**. No PRIVATE files migrated; authoritative starter/policy and recovery/reconstruction checks **NOT RUN in PUBLIC**.
+- PUBLIC production gates: Build/Unit/Integration/Android/Windows/Ubuntu/Security/Dependency Verification/License-SBOM-NOTICE/Packaging/Signing-Rollback all **NOT RUN**; reconstruction **NOT RUN**. **0/11 PASS.**
+- PDF Arranger GPL-3.0 code not used; ADR-005 only an isolated domain PoC, not production commonMain. Desktop Apache PDFBox / Android PdfRenderer architectural baselines retained; no Poppler/pikepdf or Android structural engine chosen.
+- Next P0: trusted full PUBLIC checkout, secret/license/provenance-gated product migration, V477–latest real regressions, checksum convergence, strict resolved dependency/license/SBOM/NOTICE, and platform acceptance. **PRODUCTION NOT FINAL.**
