@@ -44,10 +44,10 @@ jobs:
           test -f docs/STATUS.md
           grep -q 'PRODUCTION NOT FINAL' docs/STATUS.md
           export PYTHONPATH="$PWD/tools${PYTHONPATH:+:$PYTHONPATH}"
-          python3 -m unittest discover -s tests -p 'test_p0_public_checkout.py' -v
-          python3 -m unittest discover -s tests -p 'test_public_migration_preflight.py' -v
-          python3 -m unittest discover -s tests -p 'test_p0_manual_workflow.py' -v
-          python3 -m py_compile tools/p0_public_checkout.py tools/public_migration_preflight.py
+          # Execute every PUBLIC tooling regression module, including newly added gates.
+          # These are scoped tests, not product Unit/Integration/Security acceptance.
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+          python3 -m compileall -q tools tests
           printf 'HEAD=%s\n' "$HEAD_SHA"
           printf 'TRACKED_BLOBS=%s\n' "$(git ls-files | wc -l | tr -d ' ')"
           sha256sum docs/STATUS.md tools/p0_public_checkout.py tools/public_migration_preflight.py
@@ -55,7 +55,7 @@ jobs:
             echo '## P0 PUBLIC checkout — scoped evidence only'
             echo "PUBLIC HEAD: $HEAD_SHA"
             echo 'Full non-shallow clone, clean tree, origin/main, remote SHA and git fsck: PASS.'
-            echo 'PUBLIC Python checkout/preflight tests: see actual step log for counts.'
+            echo 'All PUBLIC Python tooling tests: see actual step log for counts; product Unit NOT RUN.'
             echo 'No PRIVATE source migrated. Product Gradle/platform/release gates: NOT RUN.'
             echo '**PRODUCTION NOT FINAL.**'
           } >> "$GITHUB_STEP_SUMMARY"
