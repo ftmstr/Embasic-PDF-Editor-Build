@@ -1,0 +1,56 @@
+name: P0 Manual Trusted PUBLIC Checkout
+
+# Deliberately manual-only. No push, pull_request, schedule, or workflow_run trigger.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trusted-public-checkout:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Verify complete PUBLIC Git clone and scoped tooling tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          export GIT_TERMINAL_PROMPT=0
+          export GIT_CONFIG_NOSYSTEM=1
+          REPO_URL='https://github.com/ftmstr/Embasic-PDF-Editor-Build.git'
+          ROOT="$(mktemp -d)"
+          trap 'rm -rf "$ROOT"' EXIT
+          git clone --no-tags --no-single-branch --branch main "$REPO_URL" "$ROOT/repo"
+          cd "$ROOT/repo"
+          test "$(git remote get-url origin)" = "$REPO_URL"
+          test "$(git branch --show-current)" = main
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          git fetch --prune --no-tags origin main
+          HEAD_SHA="$(git rev-parse HEAD)"
+          test "$HEAD_SHA" = "$(git rev-parse refs/remotes/origin/main)"
+          REMOTE_SHA="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)"
+          test "$HEAD_SHA" = "$REMOTE_SHA"
+          if git ls-files --stage | awk '$1 == "160000" { found=1 } END { exit !found }'; then
+            echo 'Unexpected gitlink/submodule in PUBLIC repository' >&2
+            exit 1
+          fi
+          git fsck --full --strict --no-reflogs
+          test -f docs/STATUS.md
+          grep -q 'PRODUCTION NOT FINAL' docs/STATUS.md
+          python3 -m unittest discover -s tests -p 'test_p0_public_checkout.py' -v
+          python3 -m unittest discover -s tests -p 'test_public_migration_preflight.py' -v
+          python3 -m py_compile tools/p0_public_checkout.py tools/public_migration_preflight.py
+          printf 'HEAD=%s\n' "$HEAD_SHA"
+          printf 'TRACKED_BLOBS=%s\n' "$(git ls-files | wc -l | tr -d ' ')"
+          sha256sum docs/STATUS.md tools/p0_public_checkout.py tools/public_migration_preflight.py
+          {
+            echo '## P0 PUBLIC checkout — scoped evidence only'
+            echo "PUBLIC HEAD: \x60$HEAD_SHA\x60"
+            echo 'Full non-shallow clone, clean tree, origin/main, remote SHA and git fsck: PASS.'
+            echo 'PUBLIC Python checkout/preflight tests: see actual step log for counts.'
+            echo 'No PRIVATE source migrated. Product Gradle/platform/release gates: NOT RUN.'
+            echo '**PRODUCTION NOT FINAL.**'
+          } >> "$GITHUB_STEP_SUMMARY"
