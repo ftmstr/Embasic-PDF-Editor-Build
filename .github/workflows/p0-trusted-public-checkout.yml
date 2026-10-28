@@ -42,6 +42,7 @@ jobs:
           grep -q 'PRODUCTION NOT FINAL' docs/STATUS.md
           python3 -m unittest discover -s tests -p 'test_p0_public_checkout.py' -v
           python3 -m unittest discover -s tests -p 'test_public_migration_preflight.py' -v
+          python3 -m unittest discover -s tests -p 'test_p0_manual_workflow.py' -v
           python3 -m py_compile tools/p0_public_checkout.py tools/public_migration_preflight.py
           printf 'HEAD=%s\n' "$HEAD_SHA"
           printf 'TRACKED_BLOBS=%s\n' "$(git ls-files | wc -l | tr -d ' ')"
