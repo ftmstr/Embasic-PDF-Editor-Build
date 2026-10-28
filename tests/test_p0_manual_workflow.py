@@ -43,6 +43,10 @@ class ManualWorkflowPolicyTests(unittest.TestCase):
         self.assertIn('GITHUB_SHA', self.content)
         self.assertRegex(self.content, r'test "\$HEAD_SHA" = "\$GITHUB_SHA"')
 
+    def test_checkout_tool_import_path_is_explicit(self):
+        """GitHub-hosted unittest discovery must import tools from repo root."""
+        self.assertIn('export PYTHONPATH="$PWD/tools${PYTHONPATH:+:$PYTHONPATH}"', self.content)
+
     def test_scoped_test_reporting_not_final(self):
         self.assertIn('test_p0_public_checkout.py', self.content)
         self.assertIn('test_public_migration_preflight.py', self.content)
