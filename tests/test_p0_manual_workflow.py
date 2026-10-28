@@ -38,6 +38,11 @@ class ManualWorkflowPolicyTests(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, self.content)
 
+    def test_trigger_sha_bound_to_checked_out_head(self):
+        """The evidence must be tied to the workflow_dispatch event commit."""
+        self.assertIn('GITHUB_SHA', self.content)
+        self.assertRegex(self.content, r'test "\$HEAD_SHA" = "\$GITHUB_SHA"')
+
     def test_scoped_test_reporting_not_final(self):
         self.assertIn('test_p0_public_checkout.py', self.content)
         self.assertIn('test_public_migration_preflight.py', self.content)
