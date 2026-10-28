@@ -48,7 +48,7 @@ jobs:
           sha256sum docs/STATUS.md tools/p0_public_checkout.py tools/public_migration_preflight.py
           {
             echo '## P0 PUBLIC checkout — scoped evidence only'
-            echo "PUBLIC HEAD: \x60$HEAD_SHA\x60"
+            echo "PUBLIC HEAD: $HEAD_SHA"
             echo 'Full non-shallow clone, clean tree, origin/main, remote SHA and git fsck: PASS.'
             echo 'PUBLIC Python checkout/preflight tests: see actual step log for counts.'
             echo 'No PRIVATE source migrated. Product Gradle/platform/release gates: NOT RUN.'
