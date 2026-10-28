@@ -33,6 +33,9 @@ jobs:
           test "$HEAD_SHA" = "$(git rev-parse refs/remotes/origin/main)"
           REMOTE_SHA="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)"
           test "$HEAD_SHA" = "$REMOTE_SHA"
+          # Fail closed if main moved after the manual workflow was dispatched.
+          test -n "${GITHUB_SHA:-}"
+          test "$HEAD_SHA" = "$GITHUB_SHA"
           if git ls-files --stage | awk '$1 == "160000" { found=1 } END { exit !found }'; then
             echo 'Unexpected gitlink/submodule in PUBLIC repository' >&2
             exit 1
