@@ -47,9 +47,16 @@ class ManualWorkflowPolicyTests(unittest.TestCase):
         """GitHub-hosted unittest discovery must import tools from repo root."""
         self.assertIn('export PYTHONPATH="$PWD/tools${PYTHONPATH:+:$PYTHONPATH}"', self.content)
 
+    def test_all_public_tooling_tests_are_discovered(self):
+        """Hosted P0 run must not silently omit newly added PUBLIC test modules."""
+        self.assertIn("python3 -m unittest discover -s tests -p 'test_*.py' -v", self.content)
+        self.assertNotIn("-p 'test_p0_public_checkout.py'", self.content)
+        self.assertNotIn("-p 'test_public_migration_preflight.py'", self.content)
+        self.assertNotIn("-p 'test_p0_manual_workflow.py'", self.content)
+
     def test_scoped_test_reporting_not_final(self):
-        self.assertIn('test_p0_public_checkout.py', self.content)
-        self.assertIn('test_public_migration_preflight.py', self.content)
+        self.assertIn("python3 -m unittest discover -s tests -p 'test_*.py' -v", self.content)
+        self.assertIn('python3 -m compileall -q tools tests', self.content)
         self.assertIn('PRODUCTION NOT FINAL', self.content)
         self.assertIn('NOT RUN', self.content)
 
