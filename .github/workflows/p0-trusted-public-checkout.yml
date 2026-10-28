@@ -43,6 +43,7 @@ jobs:
           git fsck --full --strict --no-reflogs
           test -f docs/STATUS.md
           grep -q 'PRODUCTION NOT FINAL' docs/STATUS.md
+          export PYTHONPATH="$PWD/tools${PYTHONPATH:+:$PYTHONPATH}"
           python3 -m unittest discover -s tests -p 'test_p0_public_checkout.py' -v
           python3 -m unittest discover -s tests -p 'test_public_migration_preflight.py' -v
           python3 -m unittest discover -s tests -p 'test_p0_manual_workflow.py' -v
