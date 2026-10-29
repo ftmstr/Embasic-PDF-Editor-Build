@@ -124,7 +124,8 @@ object EditorReducer {
             }
             is EditorAction.RotatePages -> {
                 val ids = action.pageIds.toSet()
-                require(ids.isNotEmpty() && ids.all { id -> pages.any { it.id == id } }) { "invalid rotated pages" }
+                val existingPageIds = pages.mapTo(HashSet(pages.size)) { it.id }
+                require(ids.isNotEmpty() && ids.all { it in existingPageIds }) { "invalid rotated pages" }
                 val turns = ((action.clockwiseQuarterTurns % 4) + 4) % 4
                 if (turns == 0) state else state.with(pages = pages.map { page ->
                     if (page.id in ids) page.copy(quarterTurns = (page.quarterTurns + turns) % 4) else page
@@ -152,7 +153,8 @@ object EditorReducer {
             }
             is EditorAction.DeletePages -> {
                 val ids = action.pageIds.toSet()
-                require(ids.all { id -> pages.any { it.id == id } }) { "unknown deleted page" }
+                val existingPageIds = pages.mapTo(HashSet(pages.size)) { it.id }
+                require(ids.all { it in existingPageIds }) { "unknown deleted page" }
                 if (ids.isEmpty()) state else state.with(
                     pages = pages.filterNot { it.id in ids },
                     selection = SelectionState.of(state.selection.pageIds - ids),
@@ -160,7 +162,8 @@ object EditorReducer {
             }
             is EditorAction.SelectPages -> {
                 val ids = action.pageIds.toSet()
-                require(ids.all { id -> pages.any { it.id == id } }) { "unknown selected page" }
+                val existingPageIds = pages.mapTo(HashSet(pages.size)) { it.id }
+                require(ids.all { it in existingPageIds }) { "unknown selected page" }
                 if (ids == state.selection.pageIds) state else state.with(selection = SelectionState.of(ids))
             }
         }
