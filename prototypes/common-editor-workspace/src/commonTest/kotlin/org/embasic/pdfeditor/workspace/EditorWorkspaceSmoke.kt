@@ -251,5 +251,31 @@ fun main() {
             original.dispatch(EditorAction.MovePages(even.toSet(), odd.size + 1))
         }
     }
+    scenario("10k page batch rotate select delete membership preserves semantics") {
+        val ids = (0 until 10_000).map { "stress-$it" }
+        val all = ids.toSet()
+        val initial = EditorHistory.start(capacity = 4).dispatch(
+            EditorAction.ImportSource(SourceDocumentRef("stress-source", ids.size), ids)
+        )
+        val selected = initial.dispatch(EditorAction.SelectPages(all))
+        check(selected.current.selection.pageIds == all)
+        check(selected.undoDepth == initial.undoDepth)
+        val rotated = selected.dispatch(EditorAction.RotatePages(all, 1))
+        check(rotated.current.pages.all { it.quarterTurns == 1 })
+        check(rotated.undo().current.pages.all { it.quarterTurns == 0 })
+        check(rotated.undo().redo().current.pages.all { it.quarterTurns == 1 })
+        val evens = ids.filterIndexed { index, _ -> index % 2 == 0 }.toSet()
+        val deleted = rotated.dispatch(EditorAction.DeletePages(evens))
+        check(deleted.current.pages.size == 5_000)
+        check(deleted.current.selection.pageIds == all - evens)
+        check(deleted.current.pages.all { it.quarterTurns == 1 })
+        check(EditorExportPlan.from(deleted.current).pages.size == 5_000)
+        check(deleted.undo().current.pages.size == 10_000)
+        for (invalid in listOf(
+            EditorAction.RotatePages(setOf("missing"), 1),
+            EditorAction.DeletePages(setOf("missing")),
+            EditorAction.SelectPages(setOf("missing")),
+        )) rejects<IllegalArgumentException> { initial.dispatch(invalid) }
+    }
     println("RESULT: $executed/$executed PASS (isolated Kotlin/JVM smoke only)")
 }
