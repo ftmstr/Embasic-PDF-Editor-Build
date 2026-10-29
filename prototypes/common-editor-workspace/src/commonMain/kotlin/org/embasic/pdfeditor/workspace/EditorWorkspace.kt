@@ -104,7 +104,8 @@ object EditorReducer {
             }
             is EditorAction.MovePages -> {
                 val ids = action.pageIds.toSet()
-                require(ids.isNotEmpty() && ids.all { id -> pages.any { it.id == id } }) { "invalid moved pages" }
+                val existingPageIds = pages.mapTo(HashSet(pages.size)) { it.id }
+                require(ids.isNotEmpty() && ids.all { it in existingPageIds }) { "invalid moved pages" }
                 val moving = pages.filter { it.id in ids }
                 val remaining = pages.filterNot { it.id in ids }
                 require(action.targetIndex in 0..remaining.size) { "invalid multi-page insertion index" }
