@@ -232,5 +232,24 @@ fun main() {
         }
         rejects<IllegalArgumentException> { h.dispatch(EditorAction.SelectPages(setOf("not-in-document"))) }
     }
+    scenario("large nonadjacent move retains order undo redo and rejects unknown IDs") {
+        val ids = (0 until 10_000).map { "p-$it" }
+        val original = EditorHistory.start(capacity = 2).dispatch(
+            EditorAction.ImportSource(SourceDocumentRef("bulk", ids.size), ids)
+        )
+        val even = ids.filterIndexed { index, _ -> index % 2 == 0 }
+        val odd = ids.filterIndexed { index, _ -> index % 2 != 0 }
+        val moved = original.dispatch(EditorAction.MovePages(even.toSet(), 0))
+        check(moved.current.pages.map { it.id } == even + odd)
+        check(moved.undo().current.pages.map { it.id } == ids)
+        check(moved.undo().redo().current.pages.map { it.id } == even + odd)
+        check(EditorExportPlan.from(moved.current).pages.size == ids.size)
+        rejects<IllegalArgumentException> {
+            original.dispatch(EditorAction.MovePages(even.toSet() + "missing", 0))
+        }
+        rejects<IllegalArgumentException> {
+            original.dispatch(EditorAction.MovePages(even.toSet(), odd.size + 1))
+        }
+    }
     println("RESULT: $executed/$executed PASS (isolated Kotlin/JVM smoke only)")
 }
