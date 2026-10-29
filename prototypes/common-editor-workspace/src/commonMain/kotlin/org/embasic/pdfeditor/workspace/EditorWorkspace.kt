@@ -48,7 +48,8 @@ class EditorDocumentState private constructor(
             val source = sourceById[page.sourceId] ?: throw IllegalArgumentException("unknown page source")
             require(page.sourcePageIndex < source.pageCount) { "page index outside source" }
         }
-        require(selection.pageIds.all { id -> storedPages.any { it.id == id } }) { "selection contains missing page" }
+        val existingPageIds = storedPages.mapTo(HashSet(storedPages.size)) { it.id }
+        require(selection.pageIds.all { it in existingPageIds }) { "selection contains missing page" }
     }
 
     internal fun with(
@@ -86,7 +87,8 @@ object EditorReducer {
                 require(state.sources.none { it.id == action.source.id }) { "source already imported" }
                 val ids = action.pageIds.toList()
                 require(ids.size == action.source.pageCount && ids.toSet().size == ids.size) { "page ID count mismatch" }
-                require(ids.all { it.isNotBlank() && pages.none { page -> page.id == it } }) { "page ID collision" }
+                val existingPageIds = pages.mapTo(HashSet(pages.size)) { it.id }
+                require(ids.all { it.isNotBlank() && it !in existingPageIds }) { "page ID collision" }
                 val imported = ids.mapIndexed { index, id -> EditorPageRef(id, action.source.id, index) }
                 state.with(sources = state.sources + action.source, pages = pages + imported)
             }

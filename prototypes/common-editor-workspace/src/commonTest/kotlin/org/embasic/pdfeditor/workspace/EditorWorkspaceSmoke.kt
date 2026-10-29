@@ -214,5 +214,23 @@ fun main() {
         }
         check(cases == 106) { "unexpected exhaustive case count: $cases" }
     }
+    scenario("large import and selection preserve source identity and bounds") {
+        val first = (0 until 4_000).map { "bulk-a-$it" }
+        val second = (0 until 4_000).map { "bulk-b-$it" }
+        val h = EditorHistory.start(capacity = 2)
+            .dispatch(EditorAction.ImportSource(SourceDocumentRef("bulk-a", first.size), first))
+            .dispatch(EditorAction.ImportSource(SourceDocumentRef("bulk-b", second.size), second))
+            .dispatch(EditorAction.SelectPages((first + second).toSet()))
+        check(h.current.pages.size == 8_000)
+        check(h.current.pages.map { it.id }.toSet().size == 8_000)
+        check(h.current.selection.pageIds.size == 8_000)
+        check(h.current.pages.first().sourceId == "bulk-a")
+        check(h.current.pages.last().sourceId == "bulk-b")
+        check(h.undoDepth == 2)
+        rejects<IllegalArgumentException> {
+            h.dispatch(EditorAction.ImportSource(SourceDocumentRef("bulk-c", 1), listOf("bulk-a-1")))
+        }
+        rejects<IllegalArgumentException> { h.dispatch(EditorAction.SelectPages(setOf("not-in-document"))) }
+    }
     println("RESULT: $executed/$executed PASS (isolated Kotlin/JVM smoke only)")
 }
