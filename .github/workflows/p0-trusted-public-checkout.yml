@@ -44,10 +44,14 @@ jobs:
           test -f docs/STATUS.md
           grep -q 'PRODUCTION NOT FINAL' docs/STATUS.md
           export PYTHONPATH="$PWD/tools${PYTHONPATH:+:$PYTHONPATH}"
+          # Keep Python bytecode outside the verified checkout.
+          export PYTHONPYCACHEPREFIX="$ROOT/python-cache"
           # Execute every PUBLIC tooling regression module, including newly added gates.
           # These are scoped tests, not product Unit/Integration/Security acceptance.
           python3 -m unittest discover -s tests -p 'test_*.py' -v
           python3 -m compileall -q tools tests
+          # The checkout must remain clean after executing scoped tests.
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
           printf 'HEAD=%s\n' "$HEAD_SHA"
           printf 'TRACKED_BLOBS=%s\n' "$(git ls-files | wc -l | tr -d ' ')"
           sha256sum docs/STATUS.md tools/p0_public_checkout.py tools/public_migration_preflight.py
