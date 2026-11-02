@@ -87,9 +87,19 @@ if [[ -n "${EMBASIC_EXPECTED_PUBLIC_SHA:-}" && "$HEAD_SHA" != "$EMBASIC_EXPECTED
     printf 'Expected PUBLIC HEAD drift: %s != %s\n' "$HEAD_SHA" "$EMBASIC_EXPECTED_PUBLIC_SHA"
     exit 65
 fi
-if git ls-files --stage | grep -q '^160000 '; then
+# Consume the entire index before matching. Under pipefail, grep -q may
+# prematurely close stdout; git then exits SIGPIPE (141) and a present gitlink
+# can be misclassified as absent. Keep index failure and grep errors fail-closed.
+git ls-files --stage > "$OUT/tracked-index.txt"
+if grep '^160000 ' "$OUT/tracked-index.txt" > "$OUT/gitlinks.txt"; then
     echo 'Unexpected gitlink: blocked' >&2
     exit 65
+else
+    scan_status="$?"
+    if [[ "$scan_status" != '1' ]]; then
+        echo 'Gitlink scan failed: blocked' >&2
+        exit 65
+    fi
 fi
 git fsck --full --strict --no-reflogs
 [[ -f docs/STATUS.md ]]
