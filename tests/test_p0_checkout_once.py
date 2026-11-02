@@ -64,7 +64,6 @@ class OneShotPublicCheckoutPolicyTests(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
-
 # Regression checks are added to the already-published baseline without rewriting
 # its original tests. Explicitly load them into a second test case.
 class GitlinkIndexFailClosedRegressions(unittest.TestCase):
