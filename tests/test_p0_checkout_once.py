@@ -63,3 +63,62 @@ class OneShotPublicCheckoutPolicyTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+# Regression checks are added to the already-published baseline without rewriting
+# its original tests. Explicitly load them into a second test case.
+class GitlinkIndexFailClosedRegressions(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.source = RUNNER.read_text(encoding='utf-8')
+        cls.gate_start = 'git ls-files --stage > "$OUT/tracked-index.txt"'
+
+    def _guard(self):
+        start = self.source.index(self.gate_start)
+        end = self.source.index('git fsck --full --strict --no-reflogs', start)
+        guard = self.source[start:end]
+        self.assertIn("if grep '^160000 ' \"$OUT/tracked-index.txt\"", guard)
+        self.assertNotIn('grep -q', guard)
+        return guard
+
+    def _index_fixture(self, repo, gitlink, files=18000):
+        subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+        empty = 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391'
+        lines = (f'160000 {empty}\t000-vendor\n' if gitlink else '')
+        lines += ''.join(f'100644 {empty}\tf{i:05}.txt\n' for i in range(files))
+        subprocess.run(['git', '-C', str(repo), 'update-index', '--index-info'],
+                       input=lines, text=True, capture_output=True, check=True)
+
+    def _execute(self, repo, output):
+        guard = self._guard()
+        cmd = 'set -Eeuo pipefail\nOUT="$1"\n' + guard
+        return subprocess.run(['bash', '-c', cmd, 'bash', str(output)], cwd=repo,
+                              text=True, capture_output=True)
+
+    def test_gitlink_present_in_large_index_is_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            repo, out = Path(root) / 'repo', Path(root) / 'evidence'
+            out.mkdir()
+            self._index_fixture(repo, True)
+            result = self._execute(repo, out)
+            self.assertEqual(result.returncode, 65, result.stderr)
+            self.assertIn('Unexpected gitlink', result.stderr)
+            self.assertIn('160000 ', (out / 'gitlinks.txt').read_text())
+
+    def test_large_index_without_gitlink_is_allowed(self):
+        with tempfile.TemporaryDirectory() as root:
+            repo, out = Path(root) / 'repo', Path(root) / 'evidence'
+            out.mkdir()
+            self._index_fixture(repo, False)
+            result = self._execute(repo, out)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((out / 'gitlinks.txt').read_text(), '')
+
+    def test_git_ls_files_failure_is_not_treated_as_clean(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            out = root / 'evidence'
+            out.mkdir()
+            result = self._execute(root, out)  # no .git here
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('not a git repository', result.stderr.lower())
