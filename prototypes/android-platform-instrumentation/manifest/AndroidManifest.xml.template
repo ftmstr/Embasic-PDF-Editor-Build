@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- STAGING ONLY: TARGET_PACKAGE and TEST_PACKAGE must be supplied from a verified approved Android module. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="@TEST_PACKAGE@">
+  <instrumentation
+      android:name="org.embasic.pdfeditor.platformtest.PlatformOnlyPdfInstrumentation"
+      android:targetPackage="@TARGET_PACKAGE@"
+      android:functionalTest="true" />
+</manifest>
