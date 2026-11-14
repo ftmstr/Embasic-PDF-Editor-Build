@@ -39,13 +39,20 @@ def sha256(path: Path) -> str:
 
 def checked_file(value: str, label: str, maxsize: int) -> Path:
     p = Path(value)
-    if not p.is_absolute() or p.is_symlink() or not p.is_file():
-        raise ProbeBlocked(f'{label}: missing, non-regular or symlink path')
+    if not p.is_absolute() or not p.is_file():
+        raise ProbeBlocked(f'{label}: missing or non-regular absolute file path')
+    if any(part.is_symlink() for part in (p, *p.parents)):
+        raise ProbeBlocked(f'{label}: symlink in path/ancestor')
     size = p.stat().st_size
     if size == 0 or size > maxsize:
         raise ProbeBlocked(f'{label}: empty or oversized')
     return p
 
+
+def file_identity(path: Path) -> tuple[int, int, int, int, int]:
+    # An identity snapshot reduces obvious replacement races; it is NOT an atomic attestation.
+    st = path.stat()
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
 
 def checked_sha(value: str, label: str) -> str:
     v = value.lower()
@@ -120,8 +127,9 @@ def main(argv: list[str] | None = None) -> int:
         signer_tool = checked_file(args.apksigner, 'apksigner', 100 * 1024 * 1024)
         app = checked_file(args.app_apk, 'app', MAX_APK_BYTES)
         test = checked_file(args.test_apk, 'test', MAX_APK_BYTES)
-        if app == test:
-            raise ProbeBlocked('product and test APK must be separate files')
+        if app == test or os.path.samefile(app, test):
+            raise ProbeBlocked('product and test APK must be distinct physical files')
+        observed_identity = [(p, file_identity(p)) for p in (aapt, signer_tool, app, test)]
         for name in ('expected_package','expected_test_package','expected_runner'):
             if not PKG.fullmatch(getattr(args,name)):
                 raise ProbeBlocked('invalid expected package/runner')
@@ -132,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
         if sha256(aapt) != pins['aapt2_sha256'] or sha256(signer_tool) != pins['apksigner_sha256']:
             raise ProbeBlocked('SDK executable hash differs from independently pinned digest')
         before = [sha256(app),sha256(test)]
+        if before[0] == before[1]:
+            raise ProbeBlocked('product and test APK must have distinct bytes')
         app_pkg, app_instrumentation = badging(sdk_call(aapt,['dump','badging',str(app)], 'app aapt2',args.timeout_seconds),'app')
         test_pkg, instr = badging(sdk_call(aapt,['dump','badging',str(test)], 'test aapt2',args.timeout_seconds),'test')
         if app_pkg != args.expected_package or test_pkg != args.expected_test_package:
@@ -146,6 +156,10 @@ def main(argv: list[str] | None = None) -> int:
             raise ProbeBlocked('APK signer certificate fingerprint differs from approved pin')
         if before != [sha256(app),sha256(test)]:
             raise ProbeBlocked('APK changed during SDK verification')
+        if sha256(aapt) != pins['aapt2_sha256'] or sha256(signer_tool) != pins['apksigner_sha256']:
+            raise ProbeBlocked('SDK executable changed during verification')
+        if any(file_identity(path) != initial for path, initial in observed_identity):
+            raise ProbeBlocked('SDK tool or APK identity changed during verification')
         report['result'] = 'LOCAL_SDK_OUTPUT_PREFLIGHT_ONLY'
         report['app_apk_sha256'],report['test_apk_sha256'] = before
         report['app_signer_fingerprint'],report['test_signer_fingerprint'] = app_signer,test_signer
