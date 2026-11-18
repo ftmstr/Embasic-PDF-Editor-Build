@@ -90,6 +90,7 @@ def validate(data, evidence_root, expected_head):
         fail('must provide distinct production and instrumentation graphs')
         return issues
     package_names = {}
+    apk_files = {}  # Validated physical path and observed bytes, per graph.
     for name in ('production', 'instrumentation'):
         g = graphs[name]
         if not isinstance(g, dict) or set(g) != {'package', 'target_package', 'apk', 'roots', 'components'}:
@@ -106,7 +107,9 @@ def validate(data, evidence_root, expected_head):
         else:
             try:
                 path = safe_path(evidence_root, apk['file'])
-                if not SHA_RE.fullmatch(str(apk['sha256'])) or digest(path) != apk['sha256']:
+                observed_digest = digest(path)
+                apk_files[name] = (path, observed_digest)
+                if not SHA_RE.fullmatch(str(apk['sha256'])) or observed_digest != apk['sha256']:
                     fail(f'{name}: APK SHA256 mismatch')
                 apk_structure(path)
             except (OSError, ValueError, zipfile.BadZipFile, RuntimeError) as exc:
@@ -161,6 +164,18 @@ def validate(data, evidence_root, expected_head):
                 todo.extend(y for y in deps if isinstance(y, str))
         if set(by_id) != visited:
             fail(f'{name}: orphan/nonresolved component in graph')
+    # Product and instrumentation packages cannot be two labels for one APK.
+    # Shared dependency artifacts across the graphs are still permitted.
+    if 'production' in apk_files and 'instrumentation' in apk_files:
+        product_path, product_digest = apk_files['production']
+        test_path, test_digest = apk_files['instrumentation']
+        try:
+            if product_path.samefile(test_path):
+                fail('production and instrumentation APK must be distinct physical files')
+        except OSError:
+            fail('production and instrumentation APK identity could not be checked')
+        if product_digest == test_digest:
+            fail('production and instrumentation APK must contain distinct bytes')
     if package_names.get('production') == package_names.get('instrumentation'):
         fail('production and test APK must be distinct packages')
     gradle = data['gradle_evidence']
