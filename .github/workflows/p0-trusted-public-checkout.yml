@@ -36,9 +36,18 @@ jobs:
           # Fail closed if main moved after the manual workflow was dispatched.
           test -n "${GITHUB_SHA:-}"
           test "$HEAD_SHA" = "$GITHUB_SHA"
-          if git ls-files --stage | awk '$1 == "160000" { found=1 } END { exit !found }'; then
+          # A failing git ls-files must never be interpreted as "no gitlinks".
+          # Capture the whole index outside the checkout, then inspect it separately.
+          git ls-files --stage > "$ROOT/tracked-index.txt"
+          if grep '^160000 ' "$ROOT/tracked-index.txt"; then
             echo 'Unexpected gitlink/submodule in PUBLIC repository' >&2
             exit 1
+          else
+            scan_status="$?"
+            if [[ "$scan_status" -ne 1 ]]; then
+              echo 'Gitlink scan error: blocked' >&2
+              exit 1
+            fi
           fi
           git fsck --full --strict --no-reflogs
           test -f docs/STATUS.md
@@ -56,7 +65,7 @@ jobs:
           printf 'TRACKED_BLOBS=%s\n' "$(git ls-files | wc -l | tr -d ' ')"
           sha256sum docs/STATUS.md tools/p0_public_checkout.py tools/public_migration_preflight.py
           {
-            echo '## P0 PUBLIC checkout — scoped evidence only'
+            echo '## P0 PUBLIC checkout â scoped evidence only'
             echo "PUBLIC HEAD: $HEAD_SHA"
             echo 'Full non-shallow clone, clean tree, origin/main, remote SHA and git fsck: PASS.'
             echo 'All PUBLIC Python tooling tests: see actual step log for counts; product Unit NOT RUN.'
