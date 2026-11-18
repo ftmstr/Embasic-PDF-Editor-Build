@@ -27,7 +27,7 @@ class DualApkClosurePreflight(unittest.TestCase):
         for name in ('app.apk', 'test.apk'):
             with zipfile.ZipFile(self.root / 'artifacts' / name, 'w') as z:
                 z.writestr('AndroidManifest.xml', b'FAKE_NOT_REAL_BINARY_XML')
-                z.writestr('classes.dex', b'FAKE_NOT_REAL_DEX')
+                z.writestr('classes.dex', b'FAKE_NOT_REAL_DEX_' + name.encode('ascii'))
         (self.root / 'artifacts/lib.aar').write_bytes(b'synthetic test component; no actual AAR')
         (self.root / 'notices/lib.txt').write_text('Fake sample MIT notice for structural checks only', encoding='utf-8')
         (self.root / 'reports/gradle.json').write_text('SYNTHETIC; NOT AN ACTUAL GRADLE REPORT', encoding='utf-8')
