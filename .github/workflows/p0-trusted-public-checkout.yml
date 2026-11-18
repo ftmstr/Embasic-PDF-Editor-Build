@@ -65,7 +65,7 @@ jobs:
           printf 'TRACKED_BLOBS=%s\n' "$(git ls-files | wc -l | tr -d ' ')"
           sha256sum docs/STATUS.md tools/p0_public_checkout.py tools/public_migration_preflight.py
           {
-            echo '## P0 PUBLIC checkout â scoped evidence only'
+            echo '## P0 PUBLIC checkout — scoped evidence only'
             echo "PUBLIC HEAD: $HEAD_SHA"
             echo 'Full non-shallow clone, clean tree, origin/main, remote SHA and git fsck: PASS.'
             echo 'All PUBLIC Python tooling tests: see actual step log for counts; product Unit NOT RUN.'
