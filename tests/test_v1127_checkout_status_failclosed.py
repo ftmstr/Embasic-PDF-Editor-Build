@@ -87,7 +87,7 @@ class CheckoutStatusFailClosed(unittest.TestCase):
         for label, source in SOURCES.items():
             for gate in status_guards(source.read_text('utf-8')):
                 with self.subTest(label=label, gate=gate):
-                    result = run_status_gate(gate, ?? incomplete\n', 42)
+                    result = run_status_gate(gate, '?? incomplete\n', 42)
                     self.assertNotEqual(result.returncode, 0)
                     self.assertNotIn('__AFTER_STATUS_GUARD__', result.stdout)
 
