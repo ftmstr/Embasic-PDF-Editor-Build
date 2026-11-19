@@ -77,7 +77,8 @@ STAGE='CHECKOUT_VERIFY'
 [[ "$(git remote get-url origin)" == "$PUBLIC_URL" ]]
 [[ "$(git branch --show-current)" == 'main' ]]
 [[ "$(git rev-parse --is-shallow-repository)" == 'false' ]]
-[[ -z "$(git status --porcelain=v1 --untracked-files=all)" ]]
+git status --porcelain=v1 --untracked-files=all > "$OUT/status-pre.txt"
+[[ ! -s "$OUT/status-pre.txt" ]]
 HEAD_SHA="$(git rev-parse --verify HEAD^{commit})"
 [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
 [[ "$HEAD_SHA" == "$(git rev-parse refs/remotes/origin/main)" ]]
@@ -121,7 +122,8 @@ else
     KOTLIN='NOT RUN (kotlinc/java unavailable)'
 fi
 STAGE='POST_TEST_CLEAN'
-[[ -z "$(git status --porcelain=v1 --untracked-files=all)" ]]
+git status --porcelain=v1 --untracked-files=all > "$OUT/status-post.txt"
+[[ ! -s "$OUT/status-post.txt" ]]
 git fsck --full --strict --no-reflogs
 printf 'PUBLIC_HEAD=%s\nREMOTE_MAIN=%s\nSCOPED_TESTS=%s\nPRODUCT_GATES=NOT RUN\nPRODUCTION NOT FINAL\n' "$HEAD_SHA" "$REMOTE_SHA" "$VERIFIER"
 STAGE='SUCCESS_SCOPED_ONLY'
