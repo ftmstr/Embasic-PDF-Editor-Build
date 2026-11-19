@@ -87,19 +87,23 @@ class CheckoutStatusFailClosed(unittest.TestCase):
         for label, source in SOURCES.items():
             for gate in status_guards(source.read_text('utf-8')):
                 with self.subTest(label=label, gate=gate):
-                    result = run_status_gate(gate, '?[ÛÛ\]WËBÙ[\ÜÙ\Ý\]X[
-\Ý[]\ÛÙK
-BÙ[\ÜÙ\Ý[	××ÐQTÔÕUT×ÑÕPT×ÉË\Ý[ÝÝ]
-BY\ÝÜÝ]\×ÜÙXÙ\×Ø\WØÚXÚÙYØYÜWØÛÛÝ[Y\Ù[NÜX[ÛÝ\ÙH[ÓÕTÑTË][\Ê
-NÜÝX\[Ý]\×ÙÝX\ÊÛÝ\ÙKXYÝ^
-	Ý]N	ÊJNÚ]Ù[ÝX\Ý
-X[[X[Ø]OYÝX\
-NÙ[\ÜÙ\YÙ^
-ÝX\×Ú]Ý]\ÈK\ÜÙ[Z[]HK][XÚÙYY[\ÏX[È	×IÊBÙ[\ÜÙ\Ý[	É
-Ú]Ý]\ÉËÝX\
-BY\ÝÜÝ]\×ÜÛ\ÚÝÛÝÜÝÜYÚ[Ü\ÊÙ[NÜX[ÛÝ\ÙH[ÓÕTÑTË][\Ê
-NÜÝX\[Ý]\×ÙÝX\ÊÛÝ\ÙKXYÝ^
-	Ý]N	ÊJNÚ]Ù[ÝX\Ý
-X[[X[Ø]OYÝX\
-NÙ[\ÜÙ\YÙ^
-ÝX\×	ÏÊ¥$ôõGÄõUBÇÓòòr  ¦bõöæÖUõòÓÒuõöÖåõòs ¢VæGFW7BæÖâ
+                    result = run_status_gate(gate, ÿÿÿ incomplete\n', 42)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn('__AFTER_STATUS_GUARD__', result.stdout)
+
+    def test_status_producers_are_checked_before_consumer(self):
+        for label, source in SOURCES.items():
+            for guard in status_guards(source.read_text('utf-8')):
+                with self.subTest(label=label, gate=guard):
+                    self.assertRegex(guard, r'^git status --porcelain=v1 --untracked-files=all > ["\']')
+                    self.assertNotIn('$(git status', guard)
+
+    def test_status_snapshot_not_stored_in_repo(self):
+        for label, source in SOURCES.items():
+            for guard in status_guards(source.read_text('utf-8')):
+                with self.subTest(label=label, gate=guard):
+                    self.assertRegex(guard, r'\$\{ÿÿÿ:ROOT|OUT)\}?/')
+
+
+if __name__ == '__main__':
+    unittest.main()
