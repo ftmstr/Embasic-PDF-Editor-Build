@@ -24,7 +24,11 @@ class CheckoutFailure(RuntimeError):
 
 def git_env() -> dict[str, str]:
     env = dict(os.environ)
-    # Ignore user/system Git config, credential helpers, and local hooks.
+    # Do not inherit Git TLS bypass, URL rewrite, or alternate repository paths.
+    # Only explicitly controlled Git variables can enter a trusted checkout.
+    for key in tuple(env):
+        if key.startswith("GIT_"):
+            del env[key]
     env.update({
         "GIT_CONFIG_GLOBAL": os.devnull,
         "GIT_CONFIG_NOSYSTEM": "1",
@@ -33,9 +37,6 @@ def git_env() -> dict[str, str]:
         "GIT_OPTIONAL_LOCKS": "0",
         "GIT_CONFIG_COUNT": "0",
     })
-    for key in tuple(env):
-        if key.startswith("GIT_CONFIG_KEY_") or key.startswith("GIT_CONFIG_VALUE_"):
-            del env[key]
     return env
 
 
