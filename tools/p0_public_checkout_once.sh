@@ -78,7 +78,11 @@ PY
 }
 trap complete EXIT
 printf 'PUBLIC_ONLY=%s\nSTARTED=%s\n' "$PUBLIC_REPO" "$STARTED"
-export GIT_TERMINAL_PROMPT=0 GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_LFS_SKIP_SMUDGE=1
+# A trusted checkout must not inherit TLS bypass, URL rewrite, or Git path override.
+for git_key in "${!GIT_@}"; do
+    unset "$git_key"
+done
+export GIT_TERMINAL_PROMPT=0 GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_LFS_SKIP_SMUDGE=1 GIT_OPTIONAL_LOCKS=0 GIT_CONFIG_COUNT=0
 STAGE='PREREQUISITES'
 command -v git
 command -v python3
