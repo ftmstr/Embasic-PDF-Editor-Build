@@ -34,7 +34,8 @@ complete() {
     trap - EXIT
     set +e
     export RUN_OUT="$OUT" RUN_STATUS="$status" RUN_STAGE="$STAGE" RUN_HEAD="$HEAD_SHA" RUN_REMOTE="$REMOTE_SHA" RUN_VERIFIER="$VERIFIER" RUN_KOTLIN="$KOTLIN" RUN_STARTED="$STARTED" RUN_REPO="$PUBLIC_REPO"
-    python3 - <<'PY'
+    local evidence_failed=0
+    if ! python3 - <<'PY'
 import datetime, hashlib, json, os
 from pathlib import Path
 root=Path(os.environ['RUN_OUT'])
@@ -56,7 +57,21 @@ result={
 }
 (root/'checkout-evidence.json').write_text(json.dumps(result,sort_keys=True,indent=2)+'\n',encoding='utf-8')
 PY
-    sha256sum "$LOG" "$OUT/checkout-evidence.json" > "$OUT/SHA256SUMS.txt"
+    then
+        evidence_failed=1
+    fi
+    if [[ "$evidence_failed" -eq 0 ]]; then
+        if ! sha256sum "$LOG" "$OUT/checkout-evidence.json" > "$OUT/SHA256SUMS.txt"; then
+            evidence_failed=1
+        fi
+    fi
+    if [[ "$evidence_failed" -ne 0 ]]; then
+        # A failed evidence producer must never turn a successful checkout into PASS.
+        # Invalid/partial records must not remain available for later consumption.
+        rm -f -- "$OUT/checkout-evidence.json" "$OUT/SHA256SUMS.txt"
+        printf 'Evidence JSON or SHA256 generation failed; blocking scoped PASS.\n' >&3
+        status=70
+    fi
     cat "$LOG" >&3
     printf '\nEvidence: %s/checkout-evidence.json  Exit: %s\n' "$OUT" "$status" >&3
     exit "$status"
