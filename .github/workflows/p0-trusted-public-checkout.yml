@@ -17,8 +17,11 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          export GIT_TERMINAL_PROMPT=0
-          export GIT_CONFIG_NOSYSTEM=1
+          # Remove inherited TLS bypass, URL rewrites, or alternate repository paths.
+          for git_key in "${!GIT_@}"; do
+            unset "$git_key"
+          done
+          export GIT_TERMINAL_PROMPT=0 GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_LFS_SKIP_SMUDGE=1 GIT_OPTIONAL_LOCKS=0 GIT_CONFIG_COUNT=0
           REPO_URL='https://github.com/ftmstr/Embasic-PDF-Editor-Build.git'
           ROOT="$(mktemp -d)"
           trap 'rm -rf "$ROOT"' EXIT
