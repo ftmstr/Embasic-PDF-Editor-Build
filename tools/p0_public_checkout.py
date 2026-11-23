@@ -84,6 +84,11 @@ def verify_checkout(destination: Path, *, expected_url: str = PUBLIC_URL,
     tracked = g("ls-files", "-s").splitlines()
     if any(line.startswith("160000 ") for line in tracked):
         raise CheckoutFailure("submodules require separately reviewed provenance")
+    # A cached origin/main can be stale even when the local index and HEAD match.
+    # Require live remote main to match the verified checkout, fail closed on DNS/offline.
+    live_main = g("ls-remote", "--exit-code", "origin", "refs/heads/main")
+    if live_main != f"{head}\trefs/heads/main":
+        raise CheckoutFailure("live remote main differs from checked-out HEAD")
     return {
         "status": "PASS",
         "scope": "git checkout integrity only; NOT product release qualification",
@@ -91,6 +96,7 @@ def verify_checkout(destination: Path, *, expected_url: str = PUBLIC_URL,
         "branch": "main",
         "head": head,
         "origin_main": remote_head,
+        "live_remote_main": head,
         "is_shallow": False,
         "worktree_clean": True,
         "git_fsck": "PASS",
