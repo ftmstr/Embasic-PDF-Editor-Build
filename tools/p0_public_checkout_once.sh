@@ -96,6 +96,23 @@ STAGE='CHECKOUT_VERIFY'
 [[ "$(git remote get-url origin)" == "$PUBLIC_URL" ]]
 [[ "$(git branch --show-current)" == 'main' ]]
 [[ "$(git rev-parse --is-shallow-repository)" == 'false' ]]
+# A clean porcelain status can hide changes under assume-unchanged/skip-worktree.
+# Read the full NUL-delimited index inventory; never split on filename newlines.
+check_index_flags() {
+    local record=''
+    git ls-files -v -z > "$1" || return 1
+    while IFS= read -r -d '' record; do
+        if [[ "$record" != 'H '?* ]]; then
+            echo 'Index flags prevent complete worktree verification.' >&2
+            return 1
+        fi
+    done < "$1"
+    if [[ -n "$record" ]]; then
+        echo 'Incomplete index flag record; blocked.' >&2
+        return 1
+    fi
+}
+check_index_flags "$OUT/index-flags-pre.bin"
 git status --porcelain=v1 --untracked-files=all > "$OUT/status-pre.txt"
 [[ ! -s "$OUT/status-pre.txt" ]]
 HEAD_SHA="$(git rev-parse --verify HEAD^{commit})"
@@ -141,6 +158,7 @@ else
     KOTLIN='NOT RUN (kotlinc/java unavailable)'
 fi
 STAGE='POST_TEST_CLEAN'
+check_index_flags "$OUT/index-flags-post.bin"
 git status --porcelain=v1 --untracked-files=all > "$OUT/status-post.txt"
 [[ ! -s "$OUT/status-post.txt" ]]
 git fsck --full --strict --no-reflogs
