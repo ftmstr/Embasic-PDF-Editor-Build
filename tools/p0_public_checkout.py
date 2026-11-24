@@ -77,6 +77,13 @@ def verify_checkout(destination: Path, *, expected_url: str = PUBLIC_URL,
     remote_head = g("rev-parse", "--verify", "refs/remotes/origin/main^{commit}")
     if head != remote_head:
         raise CheckoutFailure("local HEAD differs from origin/main")
+    # Index flags can hide changed files from an otherwise clean git status.
+    # NUL-separated records preserve unusual filenames; only ordinary H is eligible.
+    flags = g("ls-files", "-v", "-z")
+    if flags and (not flags.endswith("\0") or any(
+            not entry.startswith("H ") for entry in flags[:-1].split("\0"))):
+        raise CheckoutFailure("index flags prevent complete worktree verification")
+
     if g("status", "--porcelain=v1", "--untracked-files=all"):
         raise CheckoutFailure("worktree or index is not clean")
     # Object-integrity validation is necessary but does not establish source rights.
