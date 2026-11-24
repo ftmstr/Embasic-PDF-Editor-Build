@@ -1,0 +1,16 @@
+# V1131 — Reject hidden index flags in Python checkout verification
+Date: 2026-11-24 (Europe/Istanbul). PRODUCTION NOT FINAL.
+
+Starting PUBLIC main 5ac09d3240ee6b2598725af50f7a7f803b03c6d3. V1130 STATUS and native Drive Rapor/Codex read; their parents and ZIP metadata checked. Local V1130 ZIP SHA256 c5317f567e6a47ce2e705acc0aaf617160da9e73b462546b2af31718cb469f64 matched prior report. Local Git 2.47.3; actual HTTPS ls-remote and independent full nonshallow clone both exit128 DNS github.com unresolved, no .git. Stderr hashes respectively 137c4578bf8e71fd67eb06ef89ac907a19bffabaf9eedd374c1b717d550f41e2 and de0a77514c017902b10fcb6dac63ed17aec2aa67616de0b52171fe56654adc9c. Trusted PUBLIC full checkout, full fsck, V477-latest NOT RUN. Available connector PR-associated runs and commit statuses empty; not global Actions history. Existing manual-only workflow, no dispatch action; no Actions triggered.
+
+## Reproduced defect
+Python verify_checkout() relies on git status for clean working tree. Real isolated local clones with assume-unchanged and skip-worktree showed empty porcelain status after changing tracked bytes. Previous exact source blob 64e1171a003a171e9a2dd2f02dd646a85640d679 falsely accepted both and a clean but flagged index. RED four tests: 3 FAIL, 1 PASS, exit1.
+
+Official Git references: https://git-scm.com/docs/git-ls-files and https://git-scm.com/docs/git-update-index . A normal cached tracked file has H tag, skip-worktree S, assume-unchanged lowercase with -v. Minimal fix: consume git ls-files -v -z before status, require ordinary H record tags and complete NUL termination. Command failure remains fail-closed. No changes to index flags themselves. Scope is Python helper, not protection from concurrent mutation, arbitrary local Git config, ignored files or all hostile worktrees.
+
+GREEN exact published Python source a434671a2beca76fb29fcadf08765d9c489d7864; new test blob 3b42a67ff74b8b44ee72685486559b305f90b7ea. Local git hash-object matches connector readback. Four new and 13 directly affected existing fixture tests 17/17 PASS exit0; py_compile exit0. Only scoped local Git fixtures, not product tests. Bash one-shot and hosted workflow were inspected; they still use status pre/post and no -v flag gate. Further source-bound post-test regression required; neither changed nor certified in this turn. V1130 live-remote parity and V1129 TLS environment sanitization preserved; V1128 evidence writer and V1126 dual APK identity unchanged. Unrelated suites not rerun.
+
+## Outstanding
+Gradle/AGP/KMP task discovery, resolved product/test APK graphs, separate SPDX/SBOM/NOTICE, actual signer/aapt2/apksigner pins, Android PdfRenderer real nonempty device test, V477-latest, Windows/Ubuntu package/runtime all NOT RUN. ADR-006 PROPOSED; ADR-007 JUnit EPL-1.0 BLOCKED_TEST_ONLY_EXCEPTION_REVIEW (prior V1130 POM evidence; no waiver). 51 historical source candidates rights/privacy/asset/license clearance not established; no migration. PRIVATE STRICT READ-ONLY. All PUBLIC commits [skip ci], no force push.
+
+11 product release gates all NOT RUN, 0/11 PASS. Conditional ETA 12–24 weeks only after trusted checkout, cleared source rights, all three labs; inherited planning range not a measured forecast. Production NOT FINAL.
