@@ -220,12 +220,23 @@ class EditorExportPlan private constructor(
     val pages: List<EditorExportPage> get() = storedPages.toList()
 
     companion object {
-        fun from(state: EditorDocumentState): EditorExportPlan {
-            require(state.pages.isNotEmpty()) { "cannot export empty document" }
-            val referencedSourceIds = state.pages.map { it.sourceId }.toSet()
+        fun from(state: EditorDocumentState): EditorExportPlan = fromPages(state.sources, state.pages)
+
+        /** Plan a non-destructive extract in current document order; never fall back to all pages. */
+        fun fromSelection(state: EditorDocumentState): EditorExportPlan {
+            val selectedIds = state.selection.pageIds
+            require(selectedIds.isNotEmpty()) { "cannot extract empty selection" }
+            val selectedPages = state.pages.filter { it.id in selectedIds }
+            require(selectedPages.size == selectedIds.size) { "selection contains missing page" }
+            return fromPages(state.sources, selectedPages)
+        }
+
+        private fun fromPages(sources: List<SourceDocumentRef>, pages: List<EditorPageRef>): EditorExportPlan {
+            require(pages.isNotEmpty()) { "cannot export empty document" }
+            val referencedSourceIds = pages.map { it.sourceId }.toSet()
             return EditorExportPlan(
-                state.sources.filter { it.id in referencedSourceIds },
-                state.pages.map { EditorExportPage(it.sourceId, it.sourcePageIndex, it.quarterTurns) },
+                sources.filter { it.id in referencedSourceIds },
+                pages.map { EditorExportPage(it.sourceId, it.sourcePageIndex, it.quarterTurns) },
             )
         }
     }
