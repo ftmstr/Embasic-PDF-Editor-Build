@@ -277,5 +277,67 @@ fun main() {
             EditorAction.SelectPages(setOf("missing")),
         )) rejects<IllegalArgumentException> { initial.dispatch(invalid) }
     }
+    scenario("selected export preserves document order across sources") {
+        val h = base().dispatch(EditorAction.ImportSource(SourceDocumentRef("s2", 2), listOf("p4", "p5")))
+            .dispatch(EditorAction.MovePage("p4", 0))
+            .dispatch(EditorAction.SelectPages(linkedSetOf("p3", "p4", "p1")))
+        val plan = EditorExportPlan.fromSelection(h.current)
+        check(plan.pages == listOf(EditorExportPage("s2", 0, 0), EditorExportPage("s1", 0, 0), EditorExportPage("s1", 2, 0)))
+        check(plan.sources == listOf(SourceDocumentRef("s1", 3), SourceDocumentRef("s2", 2)))
+    }
+    scenario("selected export excludes unselected sources and pages") {
+        val h = base().dispatch(EditorAction.ImportSource(SourceDocumentRef("private-unselected", 1), listOf("p4")))
+            .dispatch(EditorAction.SelectPages(setOf("p2")))
+        val plan = EditorExportPlan.fromSelection(h.current)
+        check(plan.pages == listOf(EditorExportPage("s1", 1, 0)))
+        check(plan.sources == listOf(SourceDocumentRef("s1", 3)))
+    }
+    scenario("selected export retains separately rotated duplicate origins") {
+        val h = base().dispatch(EditorAction.DuplicatePage("p1", "copy"))
+            .dispatch(EditorAction.RotatePage("p1", 1))
+            .dispatch(EditorAction.RotatePage("copy", -1))
+            .dispatch(EditorAction.SelectPages(setOf("copy", "p1")))
+        check(EditorExportPlan.fromSelection(h.current).pages == listOf(EditorExportPage("s1", 0, 1), EditorExportPage("s1", 0, 3)))
+    }
+    scenario("empty selection fails closed even in a nonempty document") {
+        rejects<IllegalArgumentException> { EditorExportPlan.fromSelection(base().current) }
+        rejects<IllegalArgumentException> { EditorExportPlan.fromSelection(EditorDocumentState.empty()) }
+    }
+    scenario("selected export snapshot survives later edits and defensive copy attempts") {
+        val h = base().dispatch(EditorAction.SelectPages(setOf("p1", "p2")))
+        val plan = EditorExportPlan.fromSelection(h.current)
+        val later = h.dispatch(EditorAction.RotatePage("p1", 1)).dispatch(EditorAction.DeletePages(setOf("p2")))
+        (plan.pages as MutableList<EditorExportPage>).clear()
+        check(plan.pages == listOf(EditorExportPage("s1", 0, 0), EditorExportPage("s1", 1, 0)))
+        check(EditorExportPlan.fromSelection(later.current).pages == listOf(EditorExportPage("s1", 0, 1)))
+        check(h.current.selection.pageIds == setOf("p1", "p2"))
+    }
+    scenario("whole export remains independent of selection and select-all matches it") {
+        val h = base().dispatch(EditorAction.SelectPages(setOf("p2")))
+        check(EditorExportPlan.from(h.current).pages.size == 3)
+        val all = h.dispatch(EditorAction.SelectPages(setOf("p1", "p2", "p3")))
+        val extracted = EditorExportPlan.fromSelection(all.current)
+        check(extracted.pages == EditorExportPlan.from(all.current).pages)
+        check(extracted.sources == EditorExportPlan.from(all.current).sources)
+    }
+    scenario("selected export does not mutate history and rejects selection pruned by undo") {
+        val h = base().dispatch(EditorAction.DuplicatePage("p1", "copy"))
+            .dispatch(EditorAction.SelectPages(setOf("copy")))
+        val depth = h.undoDepth
+        EditorExportPlan.fromSelection(h.current)
+        check(h.undoDepth == depth && h.redoDepth == 0 && h.current.pages.size == 4)
+        rejects<IllegalArgumentException> { EditorExportPlan.fromSelection(h.undo().current) }
+    }
+    scenario("10k page selective extract includes exactly the requested 5k pages") {
+        val ids = (0 until 10_000).map { "extract-$it" }
+        val selected = ids.filterIndexed { index, _ -> index % 2 == 1 }.reversed().toSet()
+        val h = EditorHistory.start(capacity = 2)
+            .dispatch(EditorAction.ImportSource(SourceDocumentRef("bulk", ids.size), ids))
+            .dispatch(EditorAction.SelectPages(selected))
+        val plan = EditorExportPlan.fromSelection(h.current)
+        check(plan.pages.map { it.sourcePageIndex } == (1 until 10_000 step 2).toList())
+        check(plan.sources == listOf(SourceDocumentRef("bulk", 10_000)))
+        check(h.current.pages.size == 10_000)
+    }
     println("RESULT: $executed/$executed PASS (isolated Kotlin/JVM smoke only)")
 }
